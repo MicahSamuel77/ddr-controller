@@ -67,10 +67,6 @@ module tb_top ();
     commands_t display_cmd;
     assign display_cmd = commands_t'({CS, RAS, CAS, WE});
 
-    // logging bools
-    logic log_read_write_verification  = 1;
-    logic log_MRS_verification         = 1;
-
     top #() DUT (.*);
 
     // clockgen
@@ -121,8 +117,6 @@ module tb_top ();
     assign DQS  = dram_strobe;
     assign DQ   = dram_data;
 
-    int dram_cycles [3:0];
-    assign dram_cycles = {1, 1, 2, 4};
     logic [1:0] dram_burst_size;
     logic [2:0] dram_row;
     logic [1:0] dram_bank;
@@ -133,128 +127,6 @@ module tb_top ();
         if (display_cmd == ACTIVE)                              dram_row = A[2:0];
         if (display_cmd == READ || display_cmd == WRITE)        dram_bank = B;
         if (display_cmd == READ || display_cmd == WRITE)        dram_column = A[2:0];
-    end
-
-    typedef struct packed {
-        logic [63:0] rdata;
-        logic [1:0] tid;
-        logic [7:0] addr;
-    } read_info_tb;
-
-    read_info_tb expected_read_queue [$];
-    task queue_expected_read;
-        input logic [63:0] expected_data;
-        input logic [1:0] expected_tid;
-        read_info_tb read_info;
-    begin
-        read_info.rdata = expected_data;
-        read_info.tid = expected_tid;
-        expected_read_queue.push_back(read_info);
-    end
-    endtask
-
-    typedef struct packed {
-        logic [63:0] expected_data;
-        logic [1:0] expected_bank;
-        logic [2:0] expected_row;
-        logic [2:0] expected_col;
-    } write_info_tb;
-
-    write_info_tb expected_write_queue [$];
-    logic [63:0] adjusted_memory_data;
-    task queue_expected_write;
-        input logic [7:0] expected_addr;
-        input logic [63:0] expected_data;
-        write_info_tb expected_write_info;
-    begin
-        expected_write_info.expected_data = expected_data;
-        expected_write_info.expected_row = expected_addr[7:5];
-        expected_write_info.expected_bank = expected_addr[4:3];
-        expected_write_info.expected_col = expected_addr[2:0];
-        expected_write_queue.push_back(expected_write_info);
-    end
-    endtask
-
-    logic [63:0] expected_memory_data;
-    logic [1:0] expected_bank;
-    logic [2:0] expected_row;
-    logic [2:0] expected_col;
-    logic [1:0] burst4_col_temp;
-    always begin : verify_writes
-        @(negedge clk);
-        if (log_read_write_verification) begin
-            if (display_cmd == WRITE) begin
-                expected_memory_data = expected_write_queue[0].expected_data;
-                expected_bank        = expected_write_queue[0].expected_bank;
-                expected_row         = expected_write_queue[0].expected_row;
-                expected_col         = expected_write_queue[0].expected_col;
-                burst4_col_temp      = expected_col[1:0];
-                @(posedge clk);
-                @(posedge clk);
-                test_num++;
-                if (dram_burst_size == 0) begin
-                    @(posedge clk);
-                    #(SMALL_DELAY);
-                    adjusted_memory_data = {56'b0, memory[expected_bank][expected_row][expected_col]};
-                    if (expected_memory_data != adjusted_memory_data) begin
-                        $display("%sFailed %d: Write - %s%s", COLRED, test_num, test_name, COLNRM);
-                        $display("Expected %h of burst size 1 at %b_%b_%b got %h", expected_memory_data, expected_bank, expected_row, expected_col, adjusted_memory_data);
-                    end else begin
-                        $display("%sPassed %d: wrote 1 byte %h to address %b_%b_%b in %s%s", COLGRN, test_num, expected_memory_data, expected_bank, expected_row, expected_col, test_name, COLNRM);
-                    end
-                    expected_write_queue.pop_front();
-                end else if (dram_burst_size == 1) begin
-                    @(posedge clk);
-                    #(SMALL_DELAY);
-                    adjusted_memory_data = {48'b0, memory[expected_bank][expected_row][{expected_col[2:1], ~expected_col[0]}], memory[expected_bank][expected_row][{expected_col[2:1], expected_col[0]}]};
-                    if (expected_memory_data != adjusted_memory_data) begin
-                        $display("%sFailed %d: Write - %s%s", COLRED, test_num, test_name, COLNRM);
-                        $display("Expected %h of burst size 2 at %b_%b_%b got %h", expected_memory_data, expected_bank, expected_row, expected_col, adjusted_memory_data);
-                    end else begin
-                        $display("%sPassed %d: wrote two bytes %h to address %b_%b_%b in %s%s", COLGRN, test_num, expected_memory_data, expected_bank, expected_row, expected_col, test_name, COLNRM);
-                    end
-                    expected_write_queue.pop_front();
-                end else if (dram_burst_size == 2) begin
-                    @(posedge clk);
-                    @(posedge clk);
-                    @(posedge clk);
-                    #(SMALL_DELAY);
-                    adjusted_memory_data = {32'b0, 
-                                            memory[expected_bank][expected_row][{expected_col[2], ((burst4_col_temp+ 2'b11) % 3'b100)<<1}>>1],
-                                            memory[expected_bank][expected_row][{expected_col[2], ((burst4_col_temp+2'b10) % 3'b100)<<1}>>1],
-                                            memory[expected_bank][expected_row][{expected_col[2], ((burst4_col_temp+2'b1) % 3'b100)<<1}>>1],
-                                            memory[expected_bank][expected_row][{expected_col[2], ((burst4_col_temp) % 3'b100)<<1}>>1]};
-                    if (expected_memory_data != adjusted_memory_data) begin
-                        $display("%sFailed %d: Write - %s%s", COLRED, test_num, test_name, COLNRM);
-                        $display("Expected %h of burst size 4 at %b_%b_%b got %h", expected_memory_data, expected_bank, expected_row, expected_col, adjusted_memory_data);
-                    end else begin
-                        $display("%sPassed %d: wrote four bytes %h of to address %b_%b_%b in %s%s", COLGRN, test_num, expected_memory_data, expected_bank, expected_row, expected_col, test_name, COLNRM);
-                    end
-                    expected_write_queue.pop_front();
-                end else begin
-                    @(posedge clk);
-                    @(posedge clk);
-                    @(posedge clk);
-                    @(posedge clk);
-                    #(SMALL_DELAY);
-                    adjusted_memory_data = {memory[expected_bank][expected_row][(expected_col+7) % 8],
-                                            memory[expected_bank][expected_row][(expected_col+6) % 8],
-                                            memory[expected_bank][expected_row][(expected_col+5) % 8],
-                                            memory[expected_bank][expected_row][(expected_col+4) % 8],
-                                            memory[expected_bank][expected_row][(expected_col+3) % 8],
-                                            memory[expected_bank][expected_row][(expected_col+2) % 8],
-                                            memory[expected_bank][expected_row][(expected_col+1) % 8],
-                                            memory[expected_bank][expected_row][(expected_col) % 8]};
-                    if (expected_memory_data != adjusted_memory_data) begin
-                        $display("%sFailed %d: Write - %s%s", COLRED, test_num, test_name, COLNRM);
-                        $display("Expected %h of burst size 8 at %b_%b_%b got %h", expected_memory_data, expected_bank, expected_row, expected_col, adjusted_memory_data);
-                    end else begin
-                        $display("%sPassed %d: wrote eight bytes %h of to address %b_%b_%b in %s%s", COLGRN, test_num, expected_memory_data, expected_bank, expected_row, expected_col, test_name, COLNRM);
-                    end
-                    expected_write_queue.pop_front();
-                end
-            end
-        end
     end
 
     /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -354,7 +226,6 @@ module tb_top ();
         dram_data = 'z;
         read_in_progress = 0;
         if (delay2_display_cmd == READ) begin
-            // @(posedge clk);
             if (dram_burst_size < 2) begin
                 dram_strobe = 1;
                 dram_data = memory[dram_bank][dram_row][delay2_dram_column[2:0]];
@@ -557,8 +428,6 @@ module tb_top ();
         reset_inputs;
         reset_dut;
 
-        log_MRS_verification        = 0;
-        log_read_write_verification = 0;
         begin_test_cluster("initialization", 1);
         begin_test("init sequence");
         cycle_clock(2800);
