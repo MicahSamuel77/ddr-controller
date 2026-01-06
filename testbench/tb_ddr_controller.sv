@@ -39,7 +39,7 @@ module tb_ddr_controller ();
     logic MRS;
     logic [1:0] burst_size;
 
-    // interface w/ dram
+    // interface w/ dram model
     // outputs
     logic CK, N_CK, CKE, CS, RAS, CAS, WE;
     logic [1:0] B;
@@ -67,7 +67,9 @@ module tb_ddr_controller ();
         #(CLK_PERIOD / 2.0);
     end
 
-    // DRAM STUFF
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        DRAM MODEL BASICS
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     byte memory [3:0][7:0][7:0];
     logic dram_strobe;
     logic [7:0] dram_data;
@@ -89,6 +91,9 @@ module tb_ddr_controller ();
         if (display_cmd == READ || display_cmd == WRITE)        dram_column = A[2:0];
     end
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        TEST NAMING
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     string test_name;
     integer test_num = 0;
     task begin_test;
@@ -112,6 +117,9 @@ module tb_ddr_controller ();
     end
     endtask
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        DRAM MODEL READ VERIFICATION
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     typedef struct packed {
         logic [63:0] rdata;
         logic [1:0] tid;
@@ -151,6 +159,9 @@ module tb_ddr_controller ();
         end
     end
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        DRAM MODEL WRITE VERIFICATION
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     typedef struct packed {
         logic [63:0] expected_data;
         logic [1:0] expected_bank;
@@ -255,10 +266,12 @@ module tb_ddr_controller ();
         end
     end
 
-    // TAKING IN WRITE DATA LOGIC
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        DRAM MODEL WRITE LOGIC
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     int write_idx;
     logic first_clk;
-    logic micah_loves_nico_harrison;
+    logic write_col_idx;
     logic [1:0] write_4_val;
     logic [2:0] write_8_val;
     logic [2:0] delay_dram_column, delay2_dram_column;
@@ -281,7 +294,7 @@ module tb_ddr_controller ();
             delay2_dram_column <= delay_dram_column;
         end
     end
-    always begin
+    always begin : writing_to_model
         @(posedge clk);
         first_clk = 1;
         if (delay_display_cmd == WRITE) begin
@@ -300,7 +313,7 @@ module tb_ddr_controller ();
                     if (first_clk) begin
                         first_clk = 0;
                         #(SMALL_DELAY);
-                        micah_loves_nico_harrison = delay_dram_column[2];
+                        write_col_idx = delay_dram_column[2];
                         write_4_val = delay_dram_column[1:0] - 1;
                     end
                     else begin
@@ -308,11 +321,11 @@ module tb_ddr_controller ();
                         #(SMALL_DELAY);
                     end
                     write_4_val++;
-                    memory[dram_bank][dram_row][{micah_loves_nico_harrison, write_4_val}] = DQ;
+                    memory[dram_bank][dram_row][{write_col_idx, write_4_val}] = DQ;
                     @(negedge clk);
                     #(SMALL_DELAY);
                     write_4_val++;
-                    memory[dram_bank][dram_row][{micah_loves_nico_harrison, write_4_val}] = DQ;
+                    memory[dram_bank][dram_row][{write_col_idx, write_4_val}] = DQ;
                 end
             end else begin 
                 for (write_idx = 0; write_idx < 4; write_idx++) begin
@@ -336,21 +349,22 @@ module tb_ddr_controller ();
         end
     end
 
-    // SENDING OUT READ DATA LOGIC
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        DRAM MODEL READ LOGIC
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     int read_idx;
-    logic micah_wanted_to_trade_luca_doncic;
-    logic kill_me_now;
+    logic read_col_idx;
+    logic read_in_progress;
     logic [1:0] read_4_val;
     logic [2:0] read_8_val;
     
-    always begin
+    always begin : reading_from_model
         @(posedge clk);
         #(THANKYOUSPENCER);
         dram_strobe = 'z;
         dram_data = 'z;
-        kill_me_now = 0;
+        read_in_progress = 0;
         if (delay2_display_cmd == READ) begin
-            // @(posedge clk);
             if (dram_burst_size < 2) begin
                 dram_strobe = 1;
                 dram_data = memory[dram_bank][dram_row][delay2_dram_column[2:0]];
@@ -366,24 +380,24 @@ module tb_ddr_controller ();
                     dram_data = 0;
                 end
             end else if (dram_burst_size == 2) begin
-                micah_wanted_to_trade_luca_doncic = delay2_dram_column[2];
+                read_col_idx = delay2_dram_column[2];
                 read_4_val = delay2_dram_column[1:0] - 1;
                 for (read_idx = 0; read_idx < 2; read_idx++) begin
-                    if (!kill_me_now) kill_me_now = 1;
+                    if (!read_in_progress) read_in_progress = 1;
                     else begin @(posedge clk); #(THANKYOUSPENCER); end
                     dram_strobe = 1;
                     read_4_val++;
-                    dram_data = memory[dram_bank][dram_row][{micah_wanted_to_trade_luca_doncic, read_4_val}];
+                    dram_data = memory[dram_bank][dram_row][{read_col_idx, read_4_val}];
                     @(negedge clk);
                     dram_strobe = 0;
                     read_4_val++;
                     #(THANKYOUSPENCER);
-                    dram_data = memory[dram_bank][dram_row][{micah_wanted_to_trade_luca_doncic, read_4_val}];
+                    dram_data = memory[dram_bank][dram_row][{read_col_idx, read_4_val}];
                 end
             end else begin 
                 read_8_val = delay2_dram_column[2:0] - 1;
                 for (read_idx = 0; read_idx < 4; read_idx++) begin
-                    if (!kill_me_now) kill_me_now = 1;
+                    if (!read_in_progress) read_in_progress = 1;
                     else begin @(posedge clk); #(THANKYOUSPENCER); end           
                     dram_strobe = 1;
                     read_8_val++;
@@ -398,6 +412,9 @@ module tb_ddr_controller ();
         end
     end
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        BASIC TASKS
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     task reset_dut;
     begin
         n_rst = 0;
@@ -426,29 +443,6 @@ module tb_ddr_controller ();
     end
     endtask
 
-    task check_outputs;
-        input commands_t expected_cmd;
-        input logic [1:0] expected_B;
-        input logic [13:0] expected_A;
-        input logic expected_DQS;
-        input logic [7:0] expected_DQ;
-    begin
-        if (expected_cmd    != {CS, RAS, CAS, WE}   || 
-            expected_B      != B                    ||
-            expected_A      != A                    ||
-            expected_DQS    != DQS                  || 
-            expected_DQ     != DQ) begin
-            $display("%sFailed Test #%d: %s%s", COLRED, test_num, test_name, COLNRM);
-                // if (expected_CKE != CKE)                $display("CKE expected %d got %d", expected_CKE, CKE);
-                if (expected_cmd != {CS, RAS, CAS, WE}) $display("cmd expected %d got %d", expected_cmd, {CS, RAS, CAS, WE});
-                if (expected_B   != B)                  $display("B expected %d got %d", expected_B, B);
-                if (expected_A   != A)                  $display("A expected %d got %d", expected_A, A);
-        end else begin
-            $display("%sPassed Test #%d: %s%s", COLGRN, test_num, test_name, COLNRM);
-        end
-    end
-    endtask
-
     function [7:0] get_random_address;
     begin
         get_random_address = $urandom_range(8'b111_11_111);
@@ -468,6 +462,9 @@ module tb_ddr_controller ();
     end
     endtask
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        INPUT CONTROL TASKS
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     task queue_read;
         input logic [7:0] new_raddr;
         input logic [1:0] new_tid_in;
@@ -565,8 +562,6 @@ module tb_ddr_controller ();
     end
     endtask
 
-
-    // KEEP EDITING THIS
     task queue_random_raw;
         input burst_size_t wanted_burst_size;
         input logic [1:0] wanted_tid;
@@ -653,6 +648,9 @@ module tb_ddr_controller ();
     end
     endtask
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        DRAM BURST SIZE VERIFICATION
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     burst_size_t expected_burst_size;
     task set_burst_size;
     input burst_size_t new_burst_size;
@@ -687,6 +685,9 @@ module tb_ddr_controller ();
         end
     end
 
+    /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+        ERROR CHECKING
+    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     task check_err;
     input logic expected_err;
     input logic read_if_true;
@@ -1062,4 +1063,3 @@ module tb_ddr_controller ();
 endmodule
 
 /* verilator coverage_on */
-
