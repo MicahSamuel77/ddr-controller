@@ -153,27 +153,6 @@ module tb_top ();
     end
     endtask
 
-    // always begin : verify_reads
-    //     @(negedge clk);
-    //     if (log_read_write_verification) begin
-    //         if (rvalid) begin
-    //             #(SMALL_DELAY);
-    //             ren = 1;
-    //             test_num++;
-    //             if (expected_read_queue[0].rdata != rdata || expected_read_queue[0].tid != tid_out) begin
-    //                 $display("%sFailed %d: Read - %s%s", COLRED, test_num, test_name, COLNRM);
-    //                 if (expected_read_queue[0].rdata != rdata)  $display("rdata expected %h got %h", expected_read_queue[0].rdata, rdata);
-    //                 if (expected_read_queue[0].tid != tid_out)   $display("tid expected %d got %d", expected_read_queue[0].tid, tid_out);
-    //             end else begin
-    //                 $display("%sPassed %d: read data %h with tid %d in %s%s", COLGRN, test_num, expected_read_queue[0].rdata, expected_read_queue[0].tid, test_name, COLNRM);
-    //             end
-    //             expected_read_queue.pop_front();
-    //             @(negedge clk);
-    //             ren = 0;
-    //         end
-    //     end
-    // end
-
     typedef struct packed {
         logic [63:0] expected_data;
         logic [1:0] expected_bank;
@@ -277,21 +256,6 @@ module tb_top ();
             end
         end
     end
-
-    // always begin : verify_burst_size
-    //     @(posedge clk)
-    //     if (log_MRS_verification) begin
-    //         if (display_cmd == MODE_REGISTER_SET) begin
-    //             test_num++;
-    //             if (A[1:0] != expected_burst_size) begin
-    //                 $display("%sFailed %d: MRS - %s%s", COLRED, test_num, test_name, COLNRM);
-    //                 $display("Mode register set expected %d got %d", expected_burst_size, A[1:0]);
-    //             end else begin
-    //                 $display("%sPassed %d: burst size set to %b in %s%s", COLGRN, test_num, A[1:0], test_name, COLNRM);
-    //             end
-    //         end
-    //     end
-    // end
 
     /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
         DRAM MODEL
