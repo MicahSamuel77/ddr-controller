@@ -263,7 +263,7 @@ module tb_top ();
 
     int write_idx;
     logic first_clk;
-    logic micah_loves_nico_harrison;
+    logic write_col_idx;
     logic [1:0] write_4_val;
     logic [2:0] write_8_val;
     logic [2:0] delay_dram_column, delay2_dram_column;
@@ -286,7 +286,7 @@ module tb_top ();
             delay2_dram_column <= delay_dram_column;
         end
     end
-    always begin : writing_data_on_dq
+    always begin : writing_to_model
         @(posedge clk);
         first_clk = 1;
         if (delay_display_cmd == WRITE) begin
@@ -305,7 +305,7 @@ module tb_top ();
                     if (first_clk) begin
                         first_clk = 0;
                         #(SMALL_DELAY);
-                        micah_loves_nico_harrison = delay_dram_column[2];
+                        write_col_idx = delay_dram_column[2];
                         write_4_val = delay_dram_column[1:0] - 1;
                     end
                     else begin
@@ -313,11 +313,11 @@ module tb_top ();
                         #(SMALL_DELAY);
                     end
                     write_4_val++;
-                    memory[dram_bank][dram_row][{micah_loves_nico_harrison, write_4_val}] = DQ;
+                    memory[dram_bank][dram_row][{write_col_idx, write_4_val}] = DQ;
                     @(negedge clk);
                     #(SMALL_DELAY);
                     write_4_val++;
-                    memory[dram_bank][dram_row][{micah_loves_nico_harrison, write_4_val}] = DQ;
+                    memory[dram_bank][dram_row][{write_col_idx, write_4_val}] = DQ;
                 end
             end else begin 
                 for (write_idx = 0; write_idx < 4; write_idx++) begin
@@ -341,19 +341,18 @@ module tb_top ();
         end
     end
 
-     // SENDING OUT READ DATA LOGIC
     int read_idx;
-    logic micah_wanted_to_trade_luca_doncic;
-    logic kill_me_now;
+    logic read_col_idx;
+    logic read_in_progress;
     logic [1:0] read_4_val;
     logic [2:0] read_8_val;
     
-    always begin
+    always begin : reading_from_model
         @(posedge clk);
         #(THANKYOUSPENCER);
         dram_strobe = 'z;
         dram_data = 'z;
-        kill_me_now = 0;
+        read_in_progress = 0;
         if (delay2_display_cmd == READ) begin
             // @(posedge clk);
             if (dram_burst_size < 2) begin
@@ -371,24 +370,24 @@ module tb_top ();
                     dram_data = 0;
                 end
             end else if (dram_burst_size == 2) begin
-                micah_wanted_to_trade_luca_doncic = delay2_dram_column[2];
+                read_col_idx = delay2_dram_column[2];
                 read_4_val = delay2_dram_column[1:0] - 1;
                 for (read_idx = 0; read_idx < 2; read_idx++) begin
-                    if (!kill_me_now) kill_me_now = 1;
+                    if (!read_in_progress) read_in_progress = 1;
                     else begin @(posedge clk); #(THANKYOUSPENCER); end
                     dram_strobe = 1;
                     read_4_val++;
-                    dram_data = memory[dram_bank][dram_row][{micah_wanted_to_trade_luca_doncic, read_4_val}];
+                    dram_data = memory[dram_bank][dram_row][{read_col_idx, read_4_val}];
                     @(negedge clk);
                     dram_strobe = 0;
                     read_4_val++;
                     #(THANKYOUSPENCER);
-                    dram_data = memory[dram_bank][dram_row][{micah_wanted_to_trade_luca_doncic, read_4_val}];
+                    dram_data = memory[dram_bank][dram_row][{read_col_idx, read_4_val}];
                 end
             end else begin 
                 read_8_val = delay2_dram_column[2:0] - 1;
                 for (read_idx = 0; read_idx < 4; read_idx++) begin
-                    if (!kill_me_now) kill_me_now = 1;
+                    if (!read_in_progress) read_in_progress = 1;
                     else begin @(posedge clk); #(THANKYOUSPENCER); end           
                     dram_strobe = 1;
                     read_8_val++;
@@ -618,4 +617,3 @@ module tb_top ();
 endmodule
 
 /* verilator coverage_on */
-
