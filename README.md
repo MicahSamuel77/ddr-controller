@@ -4,7 +4,7 @@ The aim of this project was to make a DDR1 Memory Controller that could interfac
 - Out of Order Interleaving Support
 - Follows timing specifcations of DDR1
 - Data is clocked on both rising and falling edge of clock
-- Implements DDR Commands in correct order and implements refreshing
+- Implements DDR Commands in correct order and refreshing
 
 In addition to the memory controller, a DRAM and AXI "software" model also needed to be implemented for correct validation, the specifications for which can be seen below:
 
