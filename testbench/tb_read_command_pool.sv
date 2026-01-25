@@ -199,7 +199,7 @@ module tb_read_command_pool ();
         push_multiple_reads(.addr('{0, 0, 0, 0, 1, 60, 61, 62}), .tid(1), .num(4));
         @(negedge clk);
 
-        // DO ONE MORE RAW AND CLEAR
+        // CLEAR
         waddr = 8'd62;
         wait_clk(.num(10));
         pop_fifo(.num(4));
