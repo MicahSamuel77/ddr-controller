@@ -1,6 +1,6 @@
 # DDR1 Memory Controller - ECE 337 Custom CDL Project
 The aim of this project was to make a DDR1 Memory Controller that could interface with a SoC via the AMBA AXI4 Protocol. The following requirements were set for a successful implementation of the design:
-- DDR Speed of 10 MHz
+- DDR Speed of 200 MHz
 - Out of Order Interleaving Support
 - Follows timing specifcations of DDR1
 - Data is clocked on both rising and falling edge of clock
